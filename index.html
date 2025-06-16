@@ -1,7 +1,143 @@
 <!DOCTYPE html>
-<html>
-<body>
-<h1>Hello World</h1>
-<p>I'm hosted with GitHub Pages.</p>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Snake</title>
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    canvas {
+      background: black;
+      display: block;
+      margin: 20px auto;
+      border: 4px solid purple;
+    }
+  </style>
+</head>
+<body class="crt">
+  <div class="page-border crt">
+    <h1>Snake</h1>
+    <canvas id="game" width="400" height="400"></canvas>
+    <p>Use ← ↑ ↓ → keys — don’t crash!</p>
+    <p>
+      <a href="leaderboard.html?game=snake">View Leaderboard</a> |
+      <a href="../index.html">Back to Arcade</a>
+    </p>
+  </div>
+
+  <script>
+    // —————————————————————————————
+    // Helper to save top-5 scores in localStorage
+    function saveScore(gameKey, score, name) {
+      const key = `leaderboard-${gameKey}`;
+      const lb  = JSON.parse(localStorage.getItem(key)) || [];
+      lb.push({ name, score, date: new Date().toISOString() });
+      lb.sort((a, b) => b.score - a.score);
+      localStorage.setItem(key, JSON.stringify(lb.slice(0, 5)));
+    }
+
+    // —————————————————————————————
+    // Draw & game setup
+    const canvas    = document.getElementById("game");
+    const ctx       = canvas.getContext("2d");
+    const gridSize  = 20;
+    const tileCount = canvas.width / gridSize;
+
+    let snake     = [{ x: 10, y: 10 }];
+    let direction = { x:  0,  y:  0 };
+    let food      = spawnFood();
+    let gameOver  = false;
+
+    // —————————————————————————————
+    // Spawn food in a free cell (or anywhere if none left)
+    function spawnFood() {
+      const occupied = new Set(snake.map(seg => `${seg.x},${seg.y}`));
+      const freeCells = [];
+      for (let x = 0; x < tileCount; x++) {
+        for (let y = 0; y < tileCount; y++) {
+          if (!occupied.has(`${x},${y}`)) {
+            freeCells.push({ x, y });
+          }
+        }
+      }
+      if (freeCells.length > 0) {
+        return freeCells[Math.floor(Math.random() * freeCells.length)];
+      }
+      // board full → fallback
+      return {
+        x: Math.floor(Math.random() * tileCount),
+        y: Math.floor(Math.random() * tileCount)
+      };
+    }
+
+    // —————————————————————————————
+    // Main loop
+    function draw() {
+      if (gameOver) return;
+
+      // Move head
+      const head = {
+        x: snake[0].x + direction.x,
+        y: snake[0].y + direction.y
+      };
+      snake.unshift(head);
+
+      // Check eating
+      if (head.x === food.x && head.y === food.y) {
+        food = spawnFood();
+      } else {
+        snake.pop();
+      }
+
+      // Check collisions
+      if (
+        head.x < 0 || head.x >= tileCount ||
+        head.y < 0 || head.y >= tileCount ||
+        snake.slice(1).some(s => s.x === head.x && s.y === head.y)
+      ) {
+        gameOver = true;
+        const score = snake.length - 1;
+        const name  = prompt(`Game Over!\nYour score: ${score}\nEnter your name:`);
+        if (name) saveScore("snake", score, name);
+        return;
+      }
+
+      // Draw everything
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Food
+      ctx.fillStyle = "red";
+      ctx.fillRect(
+        food.x * gridSize,
+        food.y * gridSize,
+        gridSize - 2,
+        gridSize - 2
+      );
+
+      // Snake
+      snake.forEach((seg, idx) => {
+        ctx.fillStyle = idx === 0 ? "lime" : "green";
+        ctx.fillRect(
+          seg.x * gridSize,
+          seg.y * gridSize,
+          gridSize - 2,
+          gridSize - 2
+        );
+      });
+    }
+
+    // —————————————————————————————
+    // Input
+    window.addEventListener("keydown", e => {
+      switch (e.key) {
+        case "ArrowUp":    if (direction.y === 0) direction = { x: 0, y: -1 }; break;
+        case "ArrowDown":  if (direction.y === 0) direction = { x: 0, y:  1 }; break;
+        case "ArrowLeft":  if (direction.x === 0) direction = { x: -1, y: 0 }; break;
+        case "ArrowRight": if (direction.x === 0) direction = { x:  1, y: 0 }; break;
+      }
+    });
+
+    // Kick off
+    setInterval(draw, 150);
+  </script>
 </body>
 </html>
